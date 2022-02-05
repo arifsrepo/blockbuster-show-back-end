@@ -28,14 +28,19 @@ async function server() {
         console.log('Database Connected')
 
         app.post('/allusers', async(req, res) => {
-          console.log('api hit')
-          console.log(req.body)
+          let allUser = null;
+          if(superAdminKey === req.body?.adminkey){
+            allUser = await usersCollection.find({}).toArray();
+            res.json(allUser);
+          }else{
+            console.log('admin not found')
+            res.send(404)
+          }
         })
 
         app.get('/movie', async (req, res) => {
-          const limit = parseInt(8);
           const cursor = movieCollection.find({})
-          const movie = await cursor.limit(limit).toArray()
+          const movie = await cursor.toArray()
           res.json(movie)
         })
         
@@ -54,9 +59,8 @@ async function server() {
         })
 
         app.get('/tvseries', async (req, res) => {
-          const limit = parseInt(8);
           const cursor = tvseriesCollection.find({})
-          const tvseries = await cursor.limit(limit).toArray()
+          const tvseries = await cursor.toArray()
           res.json(tvseries)
         })
 
@@ -102,19 +106,48 @@ async function server() {
         })
 
         app.put('/users', async(req, res) => {
-          const user = req.body;
-          const filter = { email: user.email };
+          const {email, address, displayName, number } = req.body;
+          const newUser = {
+            email,
+            address,
+            displayName,
+            number,
+          }
+          const filter = { email: newUser.email };
           const options = { upsert: true};
-          const updateDoc = {$set: user};
+          const updateDoc = {$set: newUser};
           const result = await usersCollection.updateOne(filter, updateDoc, options);
           res.json(result)
         })
 
-        app.get('/users', async(req, res) => {
-          const email = req.query.email;
-          const query = { email: email };
-          const profileData = await usersCollection.findOne(query)
-          res.json(profileData)
+        app.post('/users', async(req, res) => {
+          const {email, displayName, address, number} = req.body;
+          const query = {email, displayName, balance: 0, role:'user', address, number: number};
+          const cursor = await usersCollection.insertOne(query)
+          res.json(cursor)
+        })
+
+        app.get('/userdetails', async(req, res) => {
+          const email = req.query?.email;
+          if(email){
+            const filter= { email: email };
+            const profileData = await usersCollection.findOne(filter);
+            res.json(profileData)
+          }
+        })
+
+        app.post('/addshow', async(req, res) => {
+          console.log(req.body)
+          const {show, director, des, cover_img, sub_img_one, sub_img_two, sub_img_three, url, type, img, cost, time, view, ratings, release } = req.body;
+          const showdata = { name:show, director, des, cover_img, sub_img_one, sub_img_two, sub_img_three, img, cost, time, view, ratings, release };
+          const urldata = {url}
+          if(type === 'Movie'){
+            const addmovie = await movieCollection.insertOne(showdata);
+          } else if(type === 'TV Series'){
+            const addtvseries = await tvseriesCollection.insertOne(showdata);
+          }
+          const addurl = await urlCollection.insertOne(urldata)
+          res.json('Added Successfully')
         })
 
         app.put('/view', async(req, res) => {
@@ -148,6 +181,7 @@ async function server() {
         //sslcommerz init
 
         app.post('/sslinit', async(req, res) => {
+          console.log('Initalizing SSLCommerz')
           const data = {
                 total_amount: req.body.total_amount,
                 currency: 'BDT',
@@ -163,13 +197,13 @@ async function server() {
                 payment: 'PENDING',
                 cus_name: req.body.cus_name,
                 cus_email: req.body.cus_email,
-                cus_add1: req.body?.cus_add1,
+                cus_add1: req.body?.cus_add1 || 'Not Provided',
                 cus_add2: 'Dhaka',
                 cus_city: 'Dhaka',
                 cus_state: 'Dhaka',
                 cus_postcode: '1000',
                 cus_country: 'Bangladesh',
-                cus_phone: req.body?.cus_phone,
+                cus_phone: req.body?.cus_phone || 'Not Provided',
                 cus_fax: '01711111111',
                 ship_name: 'Customer Name',
                 ship_add1: 'Dhaka',
@@ -199,6 +233,7 @@ async function server() {
         })
 
         app.post('/sslsuccess', async(req, res) => {
+          console.log('SSL Success')
           const filter = {email: validuser};
           const cursor = await usersCollection.findOne(filter);
           if(paymentId === cursor.payment.tran_id){
@@ -217,7 +252,6 @@ async function server() {
         // await client.close();
     }
 }
-
 
 server().catch(console.dir)
 
