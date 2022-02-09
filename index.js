@@ -50,6 +50,14 @@ async function server() {
           const movie = await cursor.toArray()
           res.json(movie)
         })
+
+        app.get('/moviesearch', async(req, res) => {
+          console.log('called')
+          const movieid = req.query.bookmark;
+          const query = {_id:ObjectId(movieid)};
+          const movie = await movieCollection.findOne(query);
+          res.json(movie);
+        })
         
         app.get('/toptvseries', async (req, res) => {
           const search = {top:'yes'};
@@ -137,17 +145,26 @@ async function server() {
         })
 
         app.post('/addshow', async(req, res) => {
-          console.log(req.body)
-          const {show, director, des, cover_img, sub_img_one, sub_img_two, sub_img_three, url, type, img, cost, time, view, ratings, release } = req.body;
-          const showdata = { name:show, director, des, cover_img, sub_img_one, sub_img_two, sub_img_three, img, cost, time, view, ratings, release };
+          let addmovie;
+          let addtvseries;
+          let unqid;
+          let urlholder;
+          const {show, director, des, cover_img, sub_img_one, sub_img_two, sub_img_three, url, type, img, cost, time, view, ratings, release, genere } = req.body;
+          const showdata = { name:show, director, des, cover_img, sub_img_one, sub_img_two, sub_img_three, img, cost, time, view, ratings, release, genere };
           const urldata = {url}
           if(type === 'Movie'){
-            const addmovie = await movieCollection.insertOne(showdata);
+            addmovie = await movieCollection.insertOne(showdata);
+            unqid = ObjectId(addmovie.insertedId).toString()
+            urlholder = {unqid, cost, url}
+            const respons = await urlCollection.insertOne(urlholder);
+            res.json(respons)
           } else if(type === 'TV Series'){
-            const addtvseries = await tvseriesCollection.insertOne(showdata);
+            addtvseries = await tvseriesCollection.insertOne(showdata);
+            unqid = ObjectId(addtvseries.insertedId).toString()
+            urlholder = {unqid, cost, url}
+            const respons = await urlCollection.insertOne(urlholder);
+            res.json(respons)
           }
-          const addurl = await urlCollection.insertOne(urldata)
-          res.json('Added Successfully')
         })
 
         app.put('/view', async(req, res) => {
@@ -163,7 +180,7 @@ async function server() {
               const balance = cursor?.balance;
               if(balance){
                 urllink = await urlCollection.findOne(query)
-                const cost = parseInt(urllink.cost)
+                const cost = parseInt(urllink?.cost)
                 if(cost){
                   const newBalance = balance - cost;
                   const updateDoc = {$set: { 'balance':newBalance}};
@@ -176,6 +193,31 @@ async function server() {
           }
           res.json(urllink)
         })
+
+        app.put('/bookmarks', async(req, res) => {
+          const bookmark = req.body;
+          let movieArrey = [];
+          let tvseries = [];
+          let updateDoc = null;
+          const email = {email:bookmark?.email};
+          const filter = {email:bookmark.email};
+          const options = {upsert: true};
+          const bookmarkedMovie = await usersCollection.findOne(email);
+          if(bookmark.show ==='movie'){
+            if(bookmarkedMovie?.movieBookmark){
+              movieArrey = bookmarkedMovie?.movieBookmark;
+            }
+            movieArrey.push(bookmark.id);
+            updateDoc = {$set: {movieBookmark:movieArrey}};
+          } else if(bookmark.show === 'tvseries'){
+            if(bookmark?.tvsBookmark){
+              tvseries = bookmark?.tvsBookmark;
+            }
+            tvseries.push(bookmark.id)
+            updateDoc = {$set: {tvsBookmark:tvseries}};
+          }
+          const mbookmk = await usersCollection.updateOne(filter, updateDoc, options);
+        })
         
         //Bangladeshi Payment Getway
         //sslcommerz init
@@ -185,6 +227,11 @@ async function server() {
           const data = {
                 total_amount: req.body.total_amount,
                 currency: 'BDT',
+                tran_id: uuidv4(),
+                // success_url: 'http://localhost:5000/sslsuccess',
+                // fail_url: 'http://localhost:3000/myprofile',
+                // cancel_url: 'http://localhost:3000/myprofile',
+                // ipn_url: 'http://localhost:3000/ipn',
                 tran_id: uuidv4(),
                 success_url: 'https://aqueous-peak-41377.herokuapp.com/sslsuccess',
                 fail_url: 'https://blockbuster-show.web.app/myprofile',
