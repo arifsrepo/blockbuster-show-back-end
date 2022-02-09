@@ -286,7 +286,7 @@ async function server() {
           } else {
             res.status(400)
           }
-          res.status(200).redirect('http://localhost:3000/myprofile')
+          res.status(200).redirect('https://blockbuster-show.web.app/myprofile')
         })
 
     }
