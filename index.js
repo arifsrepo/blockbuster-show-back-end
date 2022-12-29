@@ -4,7 +4,6 @@ const cors = require('cors')
 require('dotenv').config()
 const ObjectId = require('mongodb').ObjectId;
 var MongoClient = require('mongodb').MongoClient;
-//const SSLCommerzPayment = require('sslcommerz');
 const SSLCommerzPayment = require('sslcommerz-lts')
 const { v4: uuidv4 } = require('uuid');
 const port = process.env.PORT || 5000;
@@ -201,6 +200,21 @@ async function server() {
           }
           res.json(urllink)
         })
+
+        app.post('/bookmarkchk', async(req, res) =>{
+          const bookmark = req.body;
+          const filter = {email:bookmark.email, showid: bookmark.showid};
+          let search = {search:'false'};
+          if(bookmark.show ==='movie'){
+            const bookedMovie = await bookmarkedMovieCollection.findOne(bookmark);
+            bookedMovie?.showid?search = {search:true}:search = {search:false};
+          } 
+          else if(bookmark.show === 'tvseries'){
+            const bookedTvseries = await bookmarkedTvseriesCollection.findOne(bookmark);
+            bookedTvseries?.showid?search = {search:true}:search = {search:false};
+          }
+          res.json(search);
+        })
         
         app.post('/bookmarks', async(req, res) => {
           const bookmark = req.body;
@@ -214,6 +228,19 @@ async function server() {
             const bookedTvseries = await bookmarkedTvseriesCollection.insertOne(bookmark);
           }
           res.json('Sussessfully added')
+        })
+
+
+        app.post('/deletebookmarks', async(req, res) => {
+          const deletebookmark = req.body;
+          if(deletebookmark.show ==='movie'){
+            const deleted = await bookmarkedMovieCollection.deleteOne(deletebookmark);
+          } 
+          else if(deletebookmark.show === 'tvseries'){
+            console.log('tvseries')
+            const deleted = await bookmarkedTvseriesCollection.deleteOne(deletebookmark);
+          }
+          res.json('Delete added')
         })
 
         app.get('/bookmarkedmovie', async(req, res) => {
